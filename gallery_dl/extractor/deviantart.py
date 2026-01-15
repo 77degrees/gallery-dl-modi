@@ -12,6 +12,7 @@ from .common import Extractor, Message, Dispatch
 from .. import text, util, dt, exception
 from ..cache import cache, memcache
 import collections
+import copy
 import mimetypes
 import binascii
 import time
@@ -1295,15 +1296,42 @@ class DeviantartDeviationExtractor(DeviantartExtractor):
         deviation["index_file"] = 0
         deviation["num"] = deviation["count"] = 1
 
-        additional_media = text.extr(page, ',\\"additionalMedia\\":', '}],\\"')
+        # Try to extract additionalMedia using escaped JSON pattern first
+        additional_media_raw = text.extr(
+            page, ',\\"additionalMedia\\":', '}],\\"')
+
+        # Fallback: try non-escaped JSON pattern
+        if not additional_media_raw:
+            additional_media_raw = text.extr(
+                page, ',"additionalMedia":', '}],"')
+
+        if not additional_media_raw:
+            yield deviation
+            return
+
+        # Parse the additionalMedia JSON with error handling
+        try:
+            if additional_media_raw.startswith('['):
+                # Non-escaped pattern captured the full array
+                additional_media = util.json_loads(
+                    additional_media_raw + "}]")
+            else:
+                # Escaped pattern needs unescaping
+                additional_media = util.json_loads(
+                    self._unescape_json(additional_media_raw) + "}]")
+        except Exception as exc:
+            self.log.warning("Failed to parse additionalMedia: %s", exc)
+            yield deviation
+            return
+
         if not additional_media:
             yield deviation
             return
 
-        additional_media = util.json_loads(self._unescape_json(
-            additional_media) + "}]")
         total_count = 1 + len(additional_media)
         deviation["count"] = total_count
+
+        self.log.debug("Found album with %d images", total_count)
 
         # Calculate padding width for proper sorting (01, 02... vs 1, 10, 2)
         pad_width = len(str(total_count))
@@ -1319,19 +1347,24 @@ class DeviantartDeviationExtractor(DeviantartExtractor):
         yield deviation
 
         for post in additional_media:
-            # Create a copy to avoid mutating the same dict reference
-            dev_copy = deviation.copy()
-            dev_copy["content"] = deviation["content"].copy()
+            # Deep copy to avoid mutating nested dict references
+            dev_copy = copy.deepcopy(deviation)
 
-            uri = self._eclipse_media(post["media"], "fullview")[0]
-            dev_copy["content"]["src"] = uri
-            dev_copy["num"] = deviation["num"] + 1
-            dev_copy["index_file"] = post["fileId"]
-            # Download only works on purchased materials - no way to check
-            dev_copy["is_downloadable"] = False
+            try:
+                uri = self._eclipse_media(post["media"], "fullview")[0]
+                dev_copy["content"]["src"] = uri
+                dev_copy["num"] = deviation["num"] + 1
+                dev_copy["index_file"] = post.get("fileId", 0)
+                # Download only works on purchased materials - no way to check
+                dev_copy["is_downloadable"] = False
 
-            deviation["num"] += 1  # Keep track for next iteration
-            yield dev_copy
+                deviation["num"] += 1  # Keep track for next iteration
+                yield dev_copy
+            except Exception as exc:
+                self.log.warning(
+                    "Failed to extract album image %d: %s",
+                    deviation["num"] + 1, exc
+                )
 
 
 class DeviantartScrapsExtractor(DeviantartExtractor):

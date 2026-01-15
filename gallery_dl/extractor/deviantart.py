@@ -1300,24 +1300,38 @@ class DeviantartDeviationExtractor(DeviantartExtractor):
             yield deviation
             return
 
-        self.filename_fmt = ("[{date:%Y-%m-%d}] {title} by {username} - "
-                             "{num} {index}.{extension}")
+        additional_media = util.json_loads(self._unescape_json(
+            additional_media) + "}]")
+        total_count = 1 + len(additional_media)
+        deviation["count"] = total_count
+
+        # Calculate padding width for proper sorting (01, 02... vs 1, 10, 2)
+        pad_width = len(str(total_count))
+
+        # Use zero-padded numbering format for multi-image posts
+        self.filename_fmt = (
+            "[{date:%Y-%m-%d}] {title} by {username} - "
+            "{num:>0" + str(pad_width) + "} {index}.{extension}"
+        )
         self.archive_fmt = ("g_{_username}_{index}{index_file:?_//}."
                             "{extension}")
 
-        additional_media = util.json_loads(self._unescape_json(
-            additional_media) + "}]")
-        deviation["count"] = 1 + len(additional_media)
         yield deviation
 
-        for index, post in enumerate(additional_media):
+        for post in additional_media:
+            # Create a copy to avoid mutating the same dict reference
+            dev_copy = deviation.copy()
+            dev_copy["content"] = deviation["content"].copy()
+
             uri = self._eclipse_media(post["media"], "fullview")[0]
-            deviation["content"]["src"] = uri
-            deviation["num"] += 1
-            deviation["index_file"] = post["fileId"]
+            dev_copy["content"]["src"] = uri
+            dev_copy["num"] = deviation["num"] + 1
+            dev_copy["index_file"] = post["fileId"]
             # Download only works on purchased materials - no way to check
-            deviation["is_downloadable"] = False
-            yield deviation
+            dev_copy["is_downloadable"] = False
+
+            deviation["num"] += 1  # Keep track for next iteration
+            yield dev_copy
 
 
 class DeviantartScrapsExtractor(DeviantartExtractor):

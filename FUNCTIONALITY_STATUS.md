@@ -1,6 +1,6 @@
 # Gallery-DL Functionality Status Report
 
-**Date:** 2026-01-17  
+**Last Verified:** 2026-01-17 _(update this date when re-running tests)_  
 **Version Tested:** 1.31.3-dev  
 **Status:** ✅ **FULLY FUNCTIONAL**
 

@@ -13,6 +13,25 @@ and powerful `filenaming capabilities <https://gdl-org.github.io/docs/formatting
 
 |pypi| |discord| |build|
 
+
+About This Fork
+===============
+
+This repository (``77degrees/gallery-dl-modi``) is a fork of the original
+`mikf/gallery-dl <https://github.com/mikf/gallery-dl>`__ project.
+
+**Differences from upstream:**
+
+- **Quick Start Guide:** Includes ``QUICK_START.md``, a user-friendly guide with
+  installation instructions, usage examples, and troubleshooting tips.
+
+- **Functionality Status Report:** Includes ``FUNCTIONALITY_STATUS.md``, a comprehensive
+  status report documenting test results and verification of all core functionality.
+
+- **Verification Summary:** Includes ``VERIFICATION_SUMMARY.txt`` for quick status checks.
+
+**For the original project:** Visit https://github.com/mikf/gallery-dl
+
 .. contents::
 
 
